@@ -37,26 +37,26 @@ public sealed partial class ComputeShaderDescriptorGenerator : IIncrementalGener
                     // The source generator requires unsafe blocks to be enabled (eg. for pointers, [SkipLocalsInit], etc.)
                     if (!context.SemanticModel.Compilation.IsAllowUnsafeBlocksEnabled())
                     {
-                        return default;
+                        return null;
                     }
 
                     // If the type symbol doesn't have at least one interface, it can't possibly be a shader type.
                     // Additionally, shader types cannot be generic (including nested inside generic types).
                     if (context.TargetSymbol is not INamedTypeSymbol { AllInterfaces.Length: > 0, IsGenericType: false } typeSymbol)
                     {
-                        return default;
+                        return null;
                     }
 
                     // Immediately bail if the target type doesn't have internal accessibility
                     if (!typeSymbol.IsAccessibleFromContainingAssembly(context.SemanticModel.Compilation))
                     {
-                        return default;
+                        return null;
                     }
 
                     // Check whether type is a compute shader, and if so, if it's pixel shader like
                     if (!TryGetIsPixelShaderLike(typeSymbol, context.SemanticModel.Compilation, out bool isPixelShaderLike))
                     {
-                        return default;
+                        return null;
                     }
 
                     using ImmutableArrayBuilder<DiagnosticInfo> diagnostics = new();
@@ -147,15 +147,15 @@ public sealed partial class ComputeShaderDescriptorGenerator : IIncrementalGener
                         HlslInfo: hlslInfo,
                         Diagnostcs: diagnostics.ToImmutable());
                 })
-            .WithTrackingName(WellKnownTrackingNames.Execute)
-            .Where(static item => item is not null)!;
+            .Where(static item => item is not null)
+            .WithTrackingName(WellKnownTrackingNames.Execute)!;
 
         // Split the diagnostics, and drop them from the output provider (see more notes in the D2D1 generator)
         IncrementalValuesProvider<EquatableArray<DiagnosticInfo>> diagnosticInfo =
             shaderInfo
             .Select(static (item, _) => item.Diagnostcs)
-            .WithTrackingName(WellKnownTrackingNames.Diagnostics)
-            .Where(static item => !item.IsEmpty);
+            .Where(static item => !item.IsEmpty)
+            .WithTrackingName(WellKnownTrackingNames.Diagnostics);
 
         // Gather the models to produce sources for
         IncrementalValuesProvider<ShaderInfo> outputInfo =

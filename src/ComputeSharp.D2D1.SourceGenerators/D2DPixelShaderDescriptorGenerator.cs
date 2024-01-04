@@ -37,26 +37,26 @@ public sealed partial class D2DPixelShaderDescriptorGenerator : IIncrementalGene
                     // The source generator requires unsafe blocks to be enabled (eg. for pointers, [SkipLocalsInit], etc.)
                     if (!context.SemanticModel.Compilation.IsAllowUnsafeBlocksEnabled())
                     {
-                        return default;
+                        return null;
                     }
 
                     // If the type symbol doesn't have at least one interface, it can't possibly be a shader type.
                     // Also check for generic types, just like with DX12 shaders (including nesting inside generics).
                     if (context.TargetSymbol is not INamedTypeSymbol { AllInterfaces.Length: > 0, IsGenericType: false } typeSymbol)
                     {
-                        return default;
+                        return null;
                     }
 
                     // Immediately bail if the target type doesn't have internal accessibility
                     if (!typeSymbol.IsAccessibleFromContainingAssembly(context.SemanticModel.Compilation))
                     {
-                        return default;
+                        return null;
                     }
 
                     // Check that the shader implements the ID2D1PixelShader interface
                     if (!typeSymbol.HasInterfaceWithType(context.SemanticModel.Compilation.GetTypeByMetadataName("ComputeSharp.D2D1.ID2D1PixelShader")!))
                     {
-                        return default;
+                        return null;
                     }
 
                     // EffectId info
@@ -194,16 +194,16 @@ public sealed partial class D2DPixelShaderDescriptorGenerator : IIncrementalGene
                         HlslInfo: hlslInfo,
                         Diagnostcs: diagnostics.ToImmutable());
                 })
-            .WithTrackingName(WellKnownTrackingNames.Execute)
-            .Where(static item => item is not null)!;
+            .Where(static item => item is not null)
+            .WithTrackingName(WellKnownTrackingNames.Execute)!;
 
         // We need to create two more incremental steps to ensure we correctly emit diagnostics and re-generate sources.
         // First, select an incremental provider with just the diagnostics, which will trigger every time any of them changes.
         IncrementalValuesProvider<EquatableArray<DiagnosticInfo>> diagnosticInfo =
             shaderInfo
             .Select(static (item, _) => item.Diagnostcs)
-            .WithTrackingName(WellKnownTrackingNames.Diagnostics)
-            .Where(static item => !item.IsEmpty);
+            .Where(static item => !item.IsEmpty)
+            .WithTrackingName(WellKnownTrackingNames.Diagnostics);
 
         // Next, select one with just the shader info (and no diagnostics), so that changes there don't trigger generation unnecessarily
         IncrementalValuesProvider<D2D1ShaderInfo> outputInfo =
